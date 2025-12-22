@@ -1,39 +1,32 @@
-# Python
+# Python internals
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+*.pyc
+*.pyo
+*.pyd
 
-# Virtual Environment
+# Virtual Environments
 venv/
 env/
-ENV/
 .env
-.venv/
 
-# IDEs
-.idea/
+# Data (Exclude large historical data files)
+data/
+# Keep the directory structure though
+!data/.gitkeep
+
+# IDE Settings
 .vscode/
-*.swp
-*.swo
+.idea/
 
-# Project specific
-data/logs/
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
+
+# Optional: Ignore all markdown documentation if desired (User Request)
+# Uncomment the line below to strictly ignore all .md files
+# *.md
+# But we usually recommend keeping README.md for GitHub:
+# !README.md

@@ -33,35 +33,38 @@ class LLMReasoner:
         ])
 
         system_prompt = (
-            "You are a Senior Financial Analyst and AI Trading Expert. "
-            "Your job is to synthesize technical indicators and agent signals into a final trading decision. "
-            "Be conservative and precise."
+            "You are a conservative AI Trading Risk Manager. "
+            "Your goal is to validate trading signals for accuracy and safety. "
+            "PRINCIPLES: \n"
+            "1. PREFER 'HOLD' over risky 'BUY'/'SELL'. If agents conflict, choose HOLD.\n"
+            "2. SAFETY FIRST. Do not endorse signals catching falling knives.\n"
+            "3. EXPLAINABILITY. Briefly explain WHY the signal is chosen in simple terms."
         )
 
         user_prompt = (
-            f"Analyze the following market data for {current_analysis.symbol} ({current_analysis.timeframe}).\n\n"
-            f"--- EXISTING CODE-BASED AGENTS ---\n{agents_summary}\n\n"
-            f"--- TECHNICAL INDICATORS ---\n{indicators_summary}\n\n"
-            f"--- CURRENT AGGREGATED SIGNAL ---\n"
+            f"Review this market analysis for {current_analysis.symbol} ({current_analysis.timeframe}).\n\n"
+            f"--- AGENT INPUTS ---\n{agents_summary}\n\n"
+            f"--- TECHNICAL DATA ---\n{indicators_summary}\n\n"
+            f"--- PROPOSED DECISION ---\n"
             f"Signal: {current_analysis.signal}\n"
             f"Confidence: {current_analysis.confidence}\n"
             f"Reasoning: {current_analysis.reasoning}\n\n"
-            "Task:\n"
-            "1. Review the indicators and agent conflicts.\n"
-            "2. Decide if the current signal should be maintained, strengthened, or reversed.\n"
-            "3. Provide a strict JSON response with keys: 'signal' (BUY/SELL/HOLD), 'confidence' (0.0-1.0), and 'explanation' (string).\n"
-            "4. The explanation should be professional, citing specific indicators."
+            "INSTRUCTIONS:\n"
+            "1. Evaluate if the proposed decision is supported by data. If agents are weak/conflicted, enforce HOLD.\n"
+            "2. If the signal is BUY/SELL, ensure multiple indicators confirm it. If unsure, override to HOLD.\n"
+            "3. Return JSON: { 'signal': 'BUY'|'SELL'|'HOLD', 'confidence': float(0.0-1.0), 'explanation': 'One sentence summary.' }"
         )
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o", # Or gpt-3.5-turbo if cost is a concern, but gpt-4o is better for reasoning
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.2
+                temperature=0.0, # Strict, deterministic
+                max_tokens=150
             )
             
             content = response.choices[0].message.content

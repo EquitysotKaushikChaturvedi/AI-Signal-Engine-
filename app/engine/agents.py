@@ -45,11 +45,24 @@ class TrendFollowingAgent(BaseAgent):
         confidence = min(0.5 + (diff_pct * 10), 0.95) # Base 0.5, scales with separation
 
         if sma_50 > sma_200:
-            signal = SignalType.BUY
-            reasoning = f"Golden Cross detected (SMA50 {sma_50:.2f} > SMA200 {sma_200:.2f})"
+            if diff_pct > 0.02: # Require 2% separation for strong signal
+                signal = SignalType.BUY
+                confidence = min(0.6 + (diff_pct * 10), 0.90)
+                reasoning = f"Strong Golden Cross detected (SMA50 {sma_50:.2f} > SMA200 {sma_200:.2f}, Diff {diff_pct:.2%})"
+            else:
+                signal = SignalType.HOLD
+                confidence = 0.3
+                reasoning = f"Weak Golden Cross (SMA50 > SMA200), insufficient separation ({diff_pct:.2%})"
+
         elif sma_50 < sma_200:
-            signal = SignalType.SELL
-            reasoning = f"Death Cross detected (SMA50 {sma_50:.2f} < SMA200 {sma_200:.2f})"
+            if diff_pct > 0.02: # Require 2% separation for strong signal
+                signal = SignalType.SELL
+                confidence = min(0.6 + (diff_pct * 10), 0.90)
+                reasoning = f"Strong Death Cross detected (SMA50 {sma_50:.2f} < SMA200 {sma_200:.2f}, Diff {diff_pct:.2%})"
+            else:
+                signal = SignalType.HOLD
+                confidence = 0.3
+                reasoning = f"Weak Death Cross (SMA50 < SMA200), insufficient separation ({diff_pct:.2%})"
         else:
             signal = SignalType.HOLD
             confidence = 0.0
@@ -103,25 +116,25 @@ class MomentumAgent(BaseAgent):
 
         if rsi_signal == SignalType.BUY and macd_signal == SignalType.BUY:
             final_signal = SignalType.BUY
-            confidence = 0.85
+            confidence = 0.80
             reason.append("RSI oversold (<30) and MACD bullish")
         elif rsi_signal == SignalType.SELL and macd_signal == SignalType.SELL:
             final_signal = SignalType.SELL
-            confidence = 0.85
+            confidence = 0.80
             reason.append("RSI overbought (>70) and MACD bearish")
         elif rsi_signal == SignalType.BUY:
-            final_signal = SignalType.BUY
-            confidence = 0.6
-            reason.append("RSI oversold, MACD neutral/conflicting")
+            final_signal = SignalType.HOLD # Downgrade single indicator
+            confidence = 0.4
+            reason.append("RSI oversold but MACD not confirming (Wait)")
         elif rsi_signal == SignalType.SELL:
-            final_signal = SignalType.SELL
-            confidence = 0.6
-            reason.append("RSI overbought, MACD neutral/conflicting")
+            final_signal = SignalType.HOLD # Downgrade single indicator
+            confidence = 0.4
+            reason.append("RSI overbought but MACD not confirming (Wait)")
         elif macd_signal != SignalType.HOLD:
              # MACD only is weaker than RSI extremes
-            final_signal = macd_signal
-            confidence = 0.55
-            reason.append(f"MACD {'Bullish' if macd_signal == SignalType.BUY else 'Bearish'} crossover")
+            final_signal = SignalType.HOLD # Prefer HOLD if only MACD
+            confidence = 0.3
+            reason.append(f"MACD {'Bullish' if macd_signal == SignalType.BUY else 'Bearish'} crossover (Unconfirmed by RSI)")
         else:
             reason.append("Momentum indicators neutral")
 
@@ -167,12 +180,23 @@ class VolatilityAgent(BaseAgent):
 
         if current_close > upper_val:
             signal = SignalType.SELL
-            confidence = 0.75
-            reason = f"Price {current_close:.2f} broke Upper Bollinger Band {upper_val:.2f} (Overextended)"
+            confidence = 0.6 # Lower confidence on blind mean reversion
+            reason = f"Price {current_close:.2f} above Upper Band {upper_val:.2f} (Potential Overextension)"
         elif current_close < lower_val:
             signal = SignalType.BUY
-            confidence = 0.75
-            reason = f"Price {current_close:.2f} broke Lower Bollinger Band {lower_val:.2f} (Oversold)"
+            confidence = 0.6 # Lower confidence on blind mean reversion
+            reason = f"Price {current_close:.2f} below Lower Band {lower_val:.2f} (Potential Oversold)"
+
+        # Safety: If the move is extremely strong (e.g. Price > Bands by > 1%), prefer HOLD to avoid catching falling knife
+        band_width = upper_val - lower_val
+        if signal == SignalType.SELL and (current_close - upper_val) > (band_width * 0.1):
+             signal = SignalType.HOLD
+             confidence = 0.2
+             reason += " - BUT momentum strong, waiting for confirmation"
+        elif signal == SignalType.BUY and (lower_val - current_close) > (band_width * 0.1):
+             signal = SignalType.HOLD
+             confidence = 0.2
+             reason += " - BUT momentum strong, waiting for confirmation"
 
         return AgentSignal(
             signal=signal,

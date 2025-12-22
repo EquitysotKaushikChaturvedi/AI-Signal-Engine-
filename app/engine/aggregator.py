@@ -43,17 +43,17 @@ class SignalAggregator:
         final_signal = SignalType.HOLD
         final_confidence = abs(normalized_score)
         
-        if normalized_score > 0.25: # Threshold for BUY
+        if normalized_score >= 0.4: # Higher threshold (was 0.25)
             final_signal = SignalType.BUY
-        elif normalized_score < -0.25: # Threshold for SELL
+        elif normalized_score <= -0.4: # Higher threshold (was -0.25)
             final_signal = SignalType.SELL
             
         # Human readable summary
-        summary_text = f"Aggregated signal is {final_signal}. "
+        summary_text = f"Final Signal: {final_signal}. "
         if final_signal == SignalType.HOLD:
-             summary_text += "Agents have conflicting or weak signals."
+             summary_text += f"No strong consensus (Score: {normalized_score:.2f}). Agents conflicting or signals weak."
         else:
-             summary_text += f"Consensus score: {normalized_score:.2f}."
+             summary_text += f"Strong consensus achieved (Score: {normalized_score:.2f})."
 
         return AnalysisResponse(
             signal=final_signal,
